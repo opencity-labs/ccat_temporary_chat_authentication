@@ -30,7 +30,7 @@ from .utils import (
 )
 
 
-@endpoint.post("/sessions/create", tags=["Session Manager"])
+@endpoint.post("/sessions/create", tags=["Temp Chat Auth"])
 def create_temporary_session(request: Request) -> SessionCreateResponse:
     """
     Create a temporary session for anonymous users.
@@ -66,7 +66,7 @@ def create_temporary_session(request: Request) -> SessionCreateResponse:
     )
 
 
-@endpoint.get("/sessions/{session_id}/status", tags=["Session Manager"])
+@endpoint.get("/sessions/{session_id}/status", tags=["Temp Chat Auth"])
 def get_session_status(session_id: str) -> SessionStatusResponse:
     """
     Check the status of a temporary session.
@@ -99,7 +99,7 @@ def get_session_status(session_id: str) -> SessionStatusResponse:
     )
 
 
-@endpoint.delete("/sessions/{session_id}", tags=["Session Manager"])
+@endpoint.delete("/sessions/{session_id}", tags=["Temp Chat Auth"])
 def cleanup_session(session_id: str, request: Request) -> dict:
     """
     Manually cleanup a temporary session.
@@ -179,7 +179,7 @@ def cleanup_session(session_id: str, request: Request) -> dict:
         )
 
 
-@endpoint.get("/sessions/stats", tags=["Session Manager"])
+@endpoint.get("/sessions/stats", tags=["Temp Chat Auth"])
 def get_session_stats() -> dict:
     """
     Get statistics about temporary sessions.
