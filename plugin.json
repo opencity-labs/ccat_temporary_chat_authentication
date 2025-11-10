@@ -1,10 +1,10 @@
 {
-    "name": "My plugin",
+    "name": "Temporary Chat Authentication",
     "version": "0.0.1",
-    "description": "Description of my_plugin.",
-    "author_name": "Me",
-    "author_url": "https://mywebsite.me",
-    "plugin_url": "https://github.com/my_name/my_plugin",
-    "tags": "cat, template, example",
-    "thumb": "https://raw.githubusercontent.com/my_repo_path/my_plugin.png"
+    "description": "Provides temporary session management for anonymous users with JWT authentication and automatic cleanup.",
+    "author_name": "OpenCity Labs",
+    "author_url": "https://opencitylabs.it/",
+    "plugin_url": "https://github.com/opencity-labs/ccat_temporary_chat_authentication",
+    "tags": "authentication, sessions, jwt, anonymous, temporary",
+    "thumb": "https://raw.githubusercontent.com/opencity-labs/ccat_temporary_chat_authentication/refs/heads/main/auth.png"
 }
