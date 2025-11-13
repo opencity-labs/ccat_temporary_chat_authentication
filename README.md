@@ -28,23 +28,66 @@ The plugin automatically configures authentication when enabled. It provides sev
 
 ### API Endpoints
 
-- **POST `/custom/sessions/create`** - Create a new temporary session
-  - Returns JWT token and WebSocket URL for immediate connection
-  - Implements rate limiting per IP address
-  - Automatically cleans up expired sessions
+- **POST `/custom/sessions/create`** 
+  
+  Create a temporary session for anonymous users. Returns a JWT token that can be used for WebSocket authentication. Sessions automatically expire after the configured duration. Implements rate limiting per IP address and automatically cleans up expired sessions.
+  
+  **Response:**
+  ```json
+  {
+    "session_token": "string",
+    "websocket_url": "string", 
+    "user_id": "string",
+    "expires_at": "string",
+    "session_duration_minutes": "number"
+  }
+  ```
 
-- **GET `/custom/sessions/{session_id}/status`** - Check session status
-  - Returns session validity and expiration information
-  - Shows remaining session time in minutes
+- **GET `/custom/sessions/{session_id}/status`**
+  
+  Check the status of a temporary session. Returns whether the session is valid and when it expires, along with remaining session time in minutes.
+  
+  **Response:**
+  ```json
+  {
+    "user_id": "string",
+    "is_valid": "boolean",
+    "expires_at": "string",
+    "remaining_minutes": "number"
+  }
+  ```
 
-- **DELETE `/custom/sessions/{session_id}`** - Manual session cleanup
-  - Allows users to invalidate their session immediately
-  - Cleans up associated episodic memories
-  - Supports JWT token authentication
+- **DELETE `/custom/sessions/{session_id}`**
+  
+  Manually cleanup a temporary session. This can be called by the session owner to immediately invalidate their session. Accepts both JWT token authentication and direct session validation. Also cleans up associated episodic memories.
+  
+  **Headers:**
+  ```
+  Authorization: Bearer <jwt_token>
+  ```
+  
+  **Response:**
+  ```json
+  {
+    "message": "string",
+    "session_id": "string", 
+    "memory_cleaned": "boolean"
+  }
+  ```
 
-- **GET `/custom/sessions/stats`** - Get session statistics
-  - Returns active session count and average session age
-  - Shows cleanup statistics without exposing sensitive data
+- **GET `/custom/sessions/stats`**
+  
+  Get statistics about temporary sessions. This endpoint is open and provides general statistics without exposing sensitive data.
+  
+  **Response:**
+  ```json
+  {
+    "active_sessions": "number",
+    "expired_sessions_cleaned": "number",
+    "average_session_age_minutes": "number",
+    "rate_limit_ips": "number"
+  }
+  ```
 
 ### Example Implementation
 
