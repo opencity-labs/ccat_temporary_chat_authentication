@@ -2,7 +2,7 @@
 Utility functions for session management.
 
 This module contains helper functions for session validation, cleanup, rate limiting,
-and memory management for the session manager plugin.
+and memory management for the ccat_temporary_chat_authentication plugin.
 """
 
 from datetime import datetime, timedelta
@@ -18,19 +18,9 @@ rate_limit_tracker = {}
 
 def get_plugin_settings():
     """Get plugin settings from the Cat's mad hatter system."""
-    try:
-        from cat.mad_hatter.mad_hatter import MadHatter
-        mad_hatter = MadHatter()
-        plugin = mad_hatter.plugins.get("session_manager")
-        if plugin and hasattr(plugin, 'settings'):
-            return plugin.settings
-    except Exception as e:
-        log.warning(f"Could not load plugin settings, using defaults: {e}")
-    
-    # Fallback to default settings
-    from .settings import SessionManagerSettings
-    return SessionManagerSettings()
-
+    from cat.mad_hatter.mad_hatter import MadHatter
+    mad_hatter = MadHatter()
+    return mad_hatter.get_plugin().load_settings()
 
 def is_temporary_session(user_id: str) -> bool:
     """
@@ -45,12 +35,12 @@ def is_temporary_session(user_id: str) -> bool:
     settings = get_plugin_settings()
     
     # Direct check for session ID format
-    if user_id.startswith(settings.session_prefix):
-        if settings.verbose_logging:
+    if user_id.startswith(settings['session_prefix']):
+        if settings['verbose_logging']:
             log.info(f"User ID {user_id} identified as temporary session")
         return True
     
-    if settings.verbose_logging:
+    if settings['verbose_logging']:
         log.info(f"User ID {user_id} is NOT a temporary session")
     return False
 
@@ -68,7 +58,7 @@ def get_session_id_from_user_id(user_id: str) -> str:
     settings = get_plugin_settings()
     
     # If it's a session ID, return it
-    if user_id.startswith(settings.session_prefix):
+    if user_id.startswith(settings['session_prefix']):
         return user_id
     
     # Not a session ID
@@ -81,7 +71,7 @@ def check_rate_limit(client_ip: str) -> bool:
     current_time = datetime.now(utc)
     
     # Clean old entries
-    cutoff_time = current_time - timedelta(minutes=settings.rate_limit_window_minutes)
+    cutoff_time = current_time - timedelta(minutes=settings['rate_limit_window_minutes'])
     if client_ip in rate_limit_tracker:
         rate_limit_tracker[client_ip] = [
             timestamp for timestamp in rate_limit_tracker[client_ip] 
@@ -92,7 +82,7 @@ def check_rate_limit(client_ip: str) -> bool:
     if client_ip not in rate_limit_tracker:
         rate_limit_tracker[client_ip] = []
     
-    if len(rate_limit_tracker[client_ip]) >= settings.rate_limit_sessions_per_ip:
+    if len(rate_limit_tracker[client_ip]) >= settings['rate_limit_sessions_per_ip']:
         return False
     
     # Record this request
@@ -122,12 +112,12 @@ def cleanup_expired_sessions(cat=None):
         # Remove from registry
         del session_registry[session_id]
         settings = get_plugin_settings()
-        if settings.verbose_logging:
+        if settings['verbose_logging']:
             log.info(f"Cleaned up expired session: {session_id}")
     
     if memory_cleanups > 0:
         settings = get_plugin_settings()
-        if settings.verbose_logging:
+        if settings['verbose_logging']:
             log.info(f"Cleaned episodic memories for {memory_cleanups} expired sessions")
     
     return len(expired_sessions)
@@ -149,7 +139,7 @@ def cleanup_session_episodic_memory(session_id: str, cat=None):
         
         # If no cat instance is provided, we can't clean memory
         if not cat:
-            if settings.verbose_logging:
+            if settings['verbose_logging']:
                 log.warning(f"Cannot clean episodic memory for session {session_id}: no cat instance available")
             return 0
         
@@ -159,13 +149,13 @@ def cleanup_session_episodic_memory(session_id: str, cat=None):
             "session_type": "temporary"
         }
         
-        if settings.verbose_logging:
+        if settings['verbose_logging']:
             log.info(f"Cleaning episodic memories for session {session_id} with filter: {metadata_filter}")
         
         # Delete points matching the session metadata
         cat.memory.vectors.episodic.delete_points_by_metadata_filter(metadata_filter)
         
-        if settings.verbose_logging:
+        if settings['verbose_logging']:
             log.info(f"Successfully cleaned episodic memories for session {session_id}")
         return 1
         
@@ -196,7 +186,7 @@ def cleanup_all_temporary_episodic_memories(cat, purge: bool = False):
             log.warning("Cannot clean temporary episodic memories: no cat instance available")
             return 0
         
-        if settings.verbose_logging:
+        if settings['verbose_logging']:
             log.info(f"Starting cleanup of temporary episodic memories (purge={purge})")
         
         if purge:
@@ -205,11 +195,11 @@ def cleanup_all_temporary_episodic_memories(cat, purge: bool = False):
                 "session_type": "temporary"
             }
             
-            if settings.verbose_logging:
+            if settings['verbose_logging']:
                 log.info("Purging ALL temporary episodic memories")
             cat.memory.vectors.episodic.delete_points_by_metadata_filter(metadata_filter)
             
-            if settings.verbose_logging:
+            if settings['verbose_logging']:
                 log.info("Successfully purged all temporary episodic memories")
             return 1
         else:
@@ -238,7 +228,7 @@ def cleanup_all_temporary_episodic_memories(cat, purge: bool = False):
                 # For a more thorough cleanup, we could implement a method to scan all memories
                 # but that would require more complex vector store operations
                 
-                if settings.verbose_logging:
+                if settings['verbose_logging']:
                     log.info(f"Cleaned up {cleanup_count} expired temporary session memories")
                 
             except Exception as e:

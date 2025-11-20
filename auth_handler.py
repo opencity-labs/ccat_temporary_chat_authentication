@@ -88,13 +88,13 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
             # Check if this is a temporary session token
             user_id = payload.get("sub")
             settings = get_plugin_settings()
-            if not user_id or not user_id.startswith(settings.session_prefix):
+            if not user_id or not user_id.startswith(settings['session_prefix']):
                 return None  # Not a temporary session token
             
             # Verify the token hasn't expired
             exp_timestamp = payload.get("exp")
             if not exp_timestamp or datetime.now(utc).timestamp() > exp_timestamp:
-                if settings.verbose_logging:
+                if settings['verbose_logging']:
                     log.info(f"Temporary session token expired for {user_id}")
                 # Clean up expired session from registry
                 if user_id in session_registry:
@@ -103,7 +103,7 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
             
             # Check if session is still registered
             if user_id not in session_registry:
-                if settings.verbose_logging:
+                if settings['verbose_logging']:
                     log.info(f"Temporary session {user_id} not found in registry, attempting recovery from JWT")
                 
                 # Try to recover session from JWT token if it's still valid
@@ -121,7 +121,7 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
                         "connection_active": True
                     }
                     
-                    if settings.verbose_logging:
+                    if settings['verbose_logging']:
                         log.info(f"Successfully recovered session {user_id} from JWT")
                         
                 except Exception as e: 
@@ -135,7 +135,7 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
             # Create AuthUserInfo for temporary user
             # IMPORTANT: Cat framework uses user_data.name as user_id (see stray_cat.py line 61)
             # So we must set both id and name to the session ID for consistency
-            if settings.verbose_logging:
+            if settings['verbose_logging']:
                 log.info(f"Creating AuthUserInfo for temporary session: {user_id}")
             return AuthUserInfo(
                 id=user_id,  # This is the session ID with SESSION_PREFIX
@@ -145,7 +145,7 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
                     "session_type": "temporary", 
                     "created_at": payload.get("iat"),
                     "expires_at": exp_timestamp,
-                    "display_name": f"Anonymous_{user_id.replace(settings.session_prefix, '')[:8]}"
+                    "display_name": f"Anonymous_{user_id.replace(settings['session_prefix'], '')[:8]}"
                 }
             )
             
@@ -175,10 +175,10 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
         settings = get_plugin_settings()
         
         if session_duration_minutes is None:
-            session_duration_minutes = settings.default_session_duration_minutes
+            session_duration_minutes = settings['default_session_duration_minutes']
         
         # Generate unique session ID
-        session_id = f"{settings.session_prefix}{uuid.uuid4().hex}"
+        session_id = f"{settings['session_prefix']}{uuid.uuid4().hex}"
         
         # Calculate expiration
         expires_at = datetime.now(utc) + timedelta(minutes=session_duration_minutes)
@@ -208,7 +208,7 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
             "connection_active": False
         }
         
-        if settings.verbose_logging:
+        if settings['verbose_logging']:
             log.info(f"Created temporary session: {session_id}")
         
         return {

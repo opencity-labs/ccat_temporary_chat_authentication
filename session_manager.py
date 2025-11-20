@@ -66,11 +66,11 @@ def before_cat_sends_message(message, cat):
     if is_temporary_session(cat.user_id):
         if cat.user_id in session_registry:
             session_registry[cat.user_id]["last_activity"] = datetime.now(utc)
-            if settings.verbose_logging:
+            if settings['verbose_logging']:
                 log.info(f"Session {cat.user_id}: About to send message, session active")
         
         # Clean up unwanted episodic memories if episodic memory is disabled for temporary sessions
-        if not settings.episodic_memory_for_tmp:
+        if not settings['episodic_memory_for_tmp']:
             try:
                 # Remove any episodic memories with our skip markers or from this session
                 episodic_collection = cat.memory.vectors.episodic
@@ -88,13 +88,13 @@ def before_cat_sends_message(message, cat):
                     "session_type": "temporary"
                 })
                 
-                if settings.verbose_logging:
+                if settings['verbose_logging']:
                     log.info(f"Session {cat.user_id}: Cleaned up episodic memories for temporary session")
                     
             except Exception as e:
                 log.error(f"Session {cat.user_id}: Error cleaning episodic memories: {e}")
     
-    if settings.verbose_logging:
+    if settings['verbose_logging']:
         log.info(f"Session {cat.user_id}: Sending message type: {type(message)}")
     
     # Let the message pass through unchanged - the Cat framework handles the format
@@ -113,10 +113,10 @@ def after_cat_sends_message(message, cat):
     if is_temporary_session(cat.user_id):
         if cat.user_id in session_registry:
             session_registry[cat.user_id]["last_activity"] = datetime.now(utc)
-            if settings.verbose_logging:
+            if settings['verbose_logging']:
                 log.info(f"Session {cat.user_id}: Message sent successfully, session still active")
     
-    if settings.verbose_logging:
+    if settings['verbose_logging']:
         log.info(f"Session {cat.user_id}: After sending message, WebSocket should remain open")
     
     return message
@@ -130,12 +130,12 @@ def before_cat_recalls_episodic_memories(episodic_recall_config, cat):
     This adds an extra layer of isolation for temporary sessions.
     """
     settings = get_plugin_settings()
-    if settings.verbose_logging:
+    if settings['verbose_logging']:
         log.warning(f"Session {cat.user_id}: Configuring episodic memory recall")
     
     # Check if this is a temporary session
     if is_temporary_session(cat.user_id):
-        if settings.verbose_logging:
+        if settings['verbose_logging']:
             log.warning(f"Session {cat.user_id}: Configuring episodic memory recall for temporary session")
         # Only recall memories from this specific temporary session
         if "metadata" not in episodic_recall_config:
@@ -165,9 +165,9 @@ def before_cat_stores_episodic_memory(doc, cat):
         doc.metadata["source"] = cat.user_id  # user_id is now the session ID
         
         # Add skip marker if episodic memory is disabled for temporary sessions
-        if not settings.episodic_memory_for_tmp:
+        if not settings['episodic_memory_for_tmp']:
             doc.metadata["skip_storage"] = True
-            if settings.verbose_logging:
+            if settings['verbose_logging']:
                 log.info(f"Session {cat.user_id}: Marking episodic memory for cleanup (will be removed before response)")
         
         if cat.user_id in session_registry:
@@ -199,15 +199,16 @@ def after_cat_bootstrap(cat):
     """
     from cat.db import crud, models
     
-    settings = get_plugin_settings()
+    settings = cat.mad_hatter.get_plugin().load_settings()
+    log.warning(settings)
     
     # Initialize session management
     log.info("Session Manager Plugin: Initializing temporary session management")
-    log.info(f"Default session duration: {settings.default_session_duration_minutes} minutes")
+    log.info(f"Default session duration: {settings['default_session_duration_minutes']} minutes")
     
     # Clean up temporary episodic memories from previous runs
     # Set purge=True to clean ALL temporary memories, or purge=False to clean only orphaned ones
-    if settings.cleanup_on_startup:
+    if settings['cleanup_on_startup']:
         try:
             cleanup_count = cleanup_all_temporary_episodic_memories(cat, purge=True)
             log.info(f"Session Manager Plugin: Purged all {cleanup_count} temporary episodic memories on startup")
@@ -215,7 +216,7 @@ def after_cat_bootstrap(cat):
             log.error(f"Session Manager Plugin: Error cleaning temporary episodic memories on startup: {e}")
     
     # Check if our auth handler is already selected and auto-configure if enabled
-    if settings.auto_configure_auth:
+    if settings['auto_configure_auth']:
         try:
             selected_auth = crud.get_setting_by_name(name="auth_handler_selected")
             
@@ -260,28 +261,6 @@ def agent_fast_reply(fast_reply, cat):
         if cat.user_id in session_registry:
             session_registry[cat.user_id]["last_activity"] = datetime.now(utc)
             session_registry[cat.user_id]["connection_active"] = True
-        
-        # Handle ping messages with a fast reply to avoid processing
-        user_message_json = getattr(cat.working_memory, 'user_message_json', {})
-        if isinstance(user_message_json, dict) and user_message_json.get("type") == "ping":
-            from cat.looking_glass.cheshire_cat import CatMessage
-            return CatMessage(
-                user_id=cat.user_id, 
-                text="pong",  # Simple response to ping
-                type="notification"
-            )
-        
-        # Handle empty text messages
-        if isinstance(user_message_json, dict) and (
-            not user_message_json.get("text") or 
-            user_message_json.get("text").strip() == ""
-        ):
-            from cat.looking_glass.cheshire_cat import CatMessage
-            return CatMessage(
-                user_id=cat.user_id, 
-                text="Hello! How can I help you?",
-                type="chat"
-            )
     
     return fast_reply
 
