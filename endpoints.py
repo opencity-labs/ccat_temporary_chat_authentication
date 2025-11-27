@@ -150,7 +150,7 @@ def cleanup_session(session_id: str, request: Request) -> dict:
             ccat = CheshireCat()
             memory_cleaned = cleanup_session_episodic_memory(session_id, ccat)
             settings = get_plugin_settings()
-            if settings.verbose_logging:
+            if settings["verbose_logging"]:
                 log.info(f"Memory cleanup result for session {session_id}: {memory_cleaned}")
         except Exception as e:
             log.error(f"Error during memory cleanup for session {session_id}: {e}")
@@ -159,7 +159,7 @@ def cleanup_session(session_id: str, request: Request) -> dict:
         if session_id in session_registry:
             del session_registry[session_id]
             settings = get_plugin_settings()
-            if settings.verbose_logging:
+            if settings["verbose_logging"]:
                 log.info(f"Manual cleanup of session: {session_id}")
             return {
                 "message": "Session cleaned up successfully", 
