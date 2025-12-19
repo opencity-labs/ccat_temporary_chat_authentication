@@ -121,3 +121,46 @@ This plugin is fully compatible with the standard Cheshire Cat web interface. Yo
 Author: OpenCity Labs  
 LinkedIn: https://www.linkedin.com/company/opencity-italia/
 
+
+## Log Schema
+
+This plugin uses structured JSON logging to facilitate monitoring and debugging. All logs follow this base structure:
+
+```json
+{
+  "component": "ccat_temporary_chat_authentication",
+  "event": "<event_name>",
+  "data": {
+    ... <event_specific_data>
+  }
+}
+```
+
+### Event Types
+
+| Event Name | Description | Data Fields |
+|------------|-------------|-------------|
+| `token_expired` | Logged when a temporary session token has expired | `user_id` |
+| `session_not_found` | Logged when a session is not found in the registry | `user_id` |
+| `session_recovered` | Logged when a session is successfully recovered from JWT | `user_id` |
+| `session_recovery_failed` | Logged when session recovery from JWT fails | `user_id`, `error` |
+| `auth_user_info_created` | Logged when AuthUserInfo is created | `user_id` |
+| `jwt_expired` | Logged when a JWT is expired during validation | - |
+| `jwt_invalid` | Logged when a JWT is invalid | `error` |
+| `jwt_validation_error` | Logged when an error occurs during JWT validation | `error` |
+| `session_created` | Logged when a new temporary session is created | `session_id` |
+| `memory_cleanup` | Logged during memory cleanup operations | `session_id`, `cleaned` |
+| `memory_cleanup_error` | Logged when memory cleanup fails | `session_id`, `error` |
+| `manual_cleanup` | Logged when a session is manually cleaned up | `session_id` |
+| `episodic_memory_cleaned` | Logged when episodic memories are cleaned | `user_id` |
+| `episodic_memory_marked` | Logged when episodic memory is marked for cleanup | `user_id` |
+| `auth_handler_registered` | Logged when the auth handler is registered | - |
+| `init_session_management` | Logged when session management initializes | `duration` |
+| `startup_memory_purge` | Logged when memory is purged on startup | `count` |
+| `startup_memory_purge_error` | Logged when startup memory purge fails | `error` |
+| `auth_configured` | Logged when auth handler is auto-configured | - |
+| `auth_config_error` | Logged when auth configuration fails | `error` |
+| `startup_session_cleanup` | Logged when sessions are cleaned on startup | `count` |
+| `startup_session_cleanup_error` | Logged when startup session cleanup fails | `error` |
+| `expired_session_cleaned` | Logged when an expired session is cleaned | `session_id` |
+| `expired_memories_cleaned` | Logged when memories for expired sessions are cleaned | `count` |

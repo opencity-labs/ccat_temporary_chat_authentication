@@ -7,6 +7,7 @@ logic for managing JWT-based temporary sessions for anonymous users.
 
 import uuid
 import jwt
+import json
 from datetime import datetime, timedelta
 from typing import Type
 
@@ -94,8 +95,11 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
             # Verify the token hasn't expired
             exp_timestamp = payload.get("exp")
             if not exp_timestamp or datetime.now(utc).timestamp() > exp_timestamp:
-                if settings['verbose_logging']:
-                    log.info(f"Temporary session token expired for {user_id}")
+                log.info(json.dumps({
+                    "component": "ccat_temporary_chat_authentication",
+                    "event": "token_expired",
+                    "data": {"user_id": user_id}
+                }))
                 # Clean up expired session from registry
                 if user_id in session_registry:
                     del session_registry[user_id]
@@ -103,9 +107,6 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
             
             # Check if session is still registered
             if user_id not in session_registry:
-                if settings['verbose_logging']:
-                    log.info(f"Temporary session {user_id} not found in registry, attempting recovery from JWT")
-                
                 # Try to recover session from JWT token if it's still valid
                 # This handles cases where the registry was cleared but the JWT is still valid
                 try:
@@ -121,11 +122,18 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
                         "connection_active": True
                     }
                     
-                    if settings['verbose_logging']:
-                        log.info(f"Successfully recovered session {user_id} from JWT")
+                    log.info(json.dumps({
+                        "component": "ccat_temporary_chat_authentication",
+                        "event": "session_recovered",
+                        "data": {"user_id": user_id}
+                    }))
                         
                 except Exception as e: 
-                    log.error(f"Failed to recover session {user_id} from JWT: {e}")
+                    log.error(json.dumps({
+                        "component": "ccat_temporary_chat_authentication",
+                        "event": "session_recovery_failed",
+                        "data": {"user_id": user_id, "error": str(e)}
+                    }))
                     return None
             
             # Update last activity to keep session alive during conversation
@@ -135,8 +143,11 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
             # Create AuthUserInfo for temporary user
             # IMPORTANT: Cat framework uses user_data.name as user_id (see stray_cat.py line 61)
             # So we must set both id and name to the session ID for consistency
-            if settings['verbose_logging']:
-                log.info(f"Creating AuthUserInfo for temporary session: {user_id}")
+            log.info(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "auth_user_info_created",
+                "data": {"user_id": user_id}
+            }))
             return AuthUserInfo(
                 id=user_id,  # This is the session ID with SESSION_PREFIX
                 name=user_id,  # Cat framework uses this as user_id, so set it to session ID too
@@ -150,13 +161,25 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
             )
             
         except jwt.ExpiredSignatureError:
-            log.info("Temporary session JWT expired")
+            log.info(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "jwt_expired",
+                "data": {}
+            }))
             return None
         except jwt.InvalidTokenError as e:
-            log.info(f"Invalid temporary session JWT: {e}")
+            log.info(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "jwt_invalid",
+                "data": {"error": str(e)}
+            }))
             return None
         except Exception as e:
-            log.error(f"Error validating temporary session JWT: {e}")
+            log.error(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "jwt_validation_error",
+                "data": {"error": str(e)}
+            }))
             return None
     
     def authorize_user_from_key(
@@ -208,8 +231,11 @@ class TemporarySessionAuthHandler(BaseAuthHandler):
             "connection_active": False
         }
         
-        if settings['verbose_logging']:
-            log.info(f"Created temporary session: {session_id}")
+        log.info(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "session_created",
+            "data": {"session_id": session_id}
+        }))
         
         return {
             "session_token": token,

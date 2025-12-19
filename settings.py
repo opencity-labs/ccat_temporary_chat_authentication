@@ -39,11 +39,6 @@ class SessionManagerSettings(BaseModel):
         title="Episodic Memory for Temporary Sessions",
         description="Whether to enable episodic memory for temporary sessions"
     )
-    verbose_logging: bool = Field(
-        default=True,
-        title="Verbose Logging",
-        description="Enable detailed logging for debugging and monitoring"
-    )
 
 
 # hook to give the cat settings

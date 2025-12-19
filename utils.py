@@ -6,6 +6,7 @@ and memory management for the ccat_temporary_chat_authentication plugin.
 """
 
 from datetime import datetime, timedelta
+import json
 
 from pytz import utc
 from cat.log import log
@@ -36,12 +37,13 @@ def is_temporary_session(user_id: str) -> bool:
     
     # Direct check for session ID format
     if user_id.startswith(settings['session_prefix']):
-        if settings['verbose_logging']:
-            log.info(f"User ID {user_id} identified as temporary session")
+        log.info(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "session_identified",
+            "data": {"user_id": user_id}
+        }))
         return True
     
-    if settings['verbose_logging']:
-        log.info(f"User ID {user_id} is NOT a temporary session")
     return False
 
 
@@ -111,14 +113,18 @@ def cleanup_expired_sessions(cat=None):
         
         # Remove from registry
         del session_registry[session_id]
-        settings = get_plugin_settings()
-        if settings['verbose_logging']:
-            log.info(f"Cleaned up expired session: {session_id}")
+        log.info(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "expired_session_cleaned",
+            "data": {"session_id": session_id}
+        }))
     
     if memory_cleanups > 0:
-        settings = get_plugin_settings()
-        if settings['verbose_logging']:
-            log.info(f"Cleaned episodic memories for {memory_cleanups} expired sessions")
+        log.info(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "expired_memories_cleaned",
+            "data": {"count": memory_cleanups}
+        }))
     
     return len(expired_sessions)
 
@@ -135,12 +141,13 @@ def cleanup_session_episodic_memory(session_id: str, cat=None):
         cat: Cat instance for memory access
     """
     try:
-        settings = get_plugin_settings()
-        
         # If no cat instance is provided, we can't clean memory
         if not cat:
-            if settings['verbose_logging']:
-                log.warning(f"Cannot clean episodic memory for session {session_id}: no cat instance available")
+            log.warning(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "memory_cleanup_warning",
+                "data": {"session_id": session_id, "reason": "no_cat_instance"}
+            }))
             return 0
         
         # Filter metadata to find memories from this session
@@ -149,18 +156,28 @@ def cleanup_session_episodic_memory(session_id: str, cat=None):
             "session_type": "temporary"
         }
         
-        if settings['verbose_logging']:
-            log.info(f"Cleaning episodic memories for session {session_id} with filter: {metadata_filter}")
+        log.info(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "memory_cleanup_start",
+            "data": {"session_id": session_id, "filter": metadata_filter}
+        }))
         
         # Delete points matching the session metadata
         cat.memory.vectors.episodic.delete_points_by_metadata_filter(metadata_filter)
         
-        if settings['verbose_logging']:
-            log.info(f"Successfully cleaned episodic memories for session {session_id}")
+        log.info(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "memory_cleanup_success",
+            "data": {"session_id": session_id}
+        }))
         return 1
         
     except Exception as e:
-        log.error(f"Error cleaning episodic memory for session {session_id}: {e}")
+        log.error(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "memory_cleanup_error",
+            "data": {"session_id": session_id, "error": str(e)}
+        }))
         return 0
 
 
@@ -179,15 +196,16 @@ def cleanup_all_temporary_episodic_memories(cat, purge: bool = False):
     Returns:
         int: Number of memory cleanup operations performed
     """
-    try:
-        settings = get_plugin_settings()
-        
+    try:        
         if not cat:
             log.warning("Cannot clean temporary episodic memories: no cat instance available")
             return 0
         
-        if settings['verbose_logging']:
-            log.info(f"Starting cleanup of temporary episodic memories (purge={purge})")
+        log.info(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "memory_cleanup_all_start",
+            "data": {"purge": purge}
+        }))
         
         if purge:
             # Delete ALL temporary episodic memories
@@ -195,12 +213,18 @@ def cleanup_all_temporary_episodic_memories(cat, purge: bool = False):
                 "session_type": "temporary"
             }
             
-            if settings['verbose_logging']:
-                log.info("Purging ALL temporary episodic memories")
+            log.info(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "memory_cleanup_all_purge",
+                "data": {}
+            }))
             cat.memory.vectors.episodic.delete_points_by_metadata_filter(metadata_filter)
             
-            if settings['verbose_logging']:
-                log.info("Successfully purged all temporary episodic memories")
+            log.info(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "memory_cleanup_all_success",
+                "data": {}
+            }))
             return 1
         else:
             # Get all memories with temporary session metadata
@@ -228,11 +252,18 @@ def cleanup_all_temporary_episodic_memories(cat, purge: bool = False):
                 # For a more thorough cleanup, we could implement a method to scan all memories
                 # but that would require more complex vector store operations
                 
-                if settings['verbose_logging']:
-                    log.info(f"Cleaned up {cleanup_count} expired temporary session memories")
+                log.info(json.dumps({
+                    "component": "ccat_temporary_chat_authentication",
+                    "event": "memory_cleanup_selective_success",
+                    "data": {"count": cleanup_count}
+                }))
                 
             except Exception as e:
-                log.error(f"Error during selective temporary memory cleanup: {e}")
+                log.error(json.dumps({
+                    "component": "ccat_temporary_chat_authentication",
+                    "event": "memory_cleanup_selective_error",
+                    "data": {"error": str(e)}
+                }))
                 # Fallback to purge if selective cleanup fails
                 log.info("Falling back to purge mode due to selective cleanup error")
                 metadata_filter = {
@@ -244,5 +275,9 @@ def cleanup_all_temporary_episodic_memories(cat, purge: bool = False):
             return cleanup_count
         
     except Exception as e:
-        log.error(f"Error cleaning temporary episodic memories: {e}")
+        log.error(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "memory_cleanup_all_error",
+            "data": {"error": str(e)}
+        }))
         return 0

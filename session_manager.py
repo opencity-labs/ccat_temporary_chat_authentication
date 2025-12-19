@@ -21,6 +21,7 @@ Plugin Structure:
 """
 
 from datetime import datetime
+import json
 
 from pytz import utc
 from cat.mad_hatter.decorators import hook
@@ -66,8 +67,6 @@ def before_cat_sends_message(message, cat):
     if is_temporary_session(cat.user_id):
         if cat.user_id in session_registry:
             session_registry[cat.user_id]["last_activity"] = datetime.now(utc)
-            if settings['verbose_logging']:
-                log.info(f"Session {cat.user_id}: About to send message, session active")
         
         # Clean up unwanted episodic memories if episodic memory is disabled for temporary sessions
         if not settings['episodic_memory_for_tmp']:
@@ -88,14 +87,18 @@ def before_cat_sends_message(message, cat):
                     "session_type": "temporary"
                 })
                 
-                if settings['verbose_logging']:
-                    log.info(f"Session {cat.user_id}: Cleaned up episodic memories for temporary session")
+                log.info(json.dumps({
+                    "component": "ccat_temporary_chat_authentication",
+                    "event": "episodic_memory_cleaned",
+                    "data": {"user_id": cat.user_id}
+                }))
                     
             except Exception as e:
-                log.error(f"Session {cat.user_id}: Error cleaning episodic memories: {e}")
-    
-    if settings['verbose_logging']:
-        log.info(f"Session {cat.user_id}: Sending message type: {type(message)}")
+                log.error(json.dumps({
+                    "component": "ccat_temporary_chat_authentication",
+                    "event": "memory_cleanup_error",
+                    "data": {"user_id": cat.user_id, "error": str(e)}
+                }))
     
     # Let the message pass through unchanged - the Cat framework handles the format
     return message
@@ -113,11 +116,6 @@ def after_cat_sends_message(message, cat):
     if is_temporary_session(cat.user_id):
         if cat.user_id in session_registry:
             session_registry[cat.user_id]["last_activity"] = datetime.now(utc)
-            if settings['verbose_logging']:
-                log.info(f"Session {cat.user_id}: Message sent successfully, session still active")
-    
-    if settings['verbose_logging']:
-        log.info(f"Session {cat.user_id}: After sending message, WebSocket should remain open")
     
     return message
 
@@ -130,13 +128,14 @@ def before_cat_recalls_episodic_memories(episodic_recall_config, cat):
     This adds an extra layer of isolation for temporary sessions.
     """
     settings = get_plugin_settings()
-    if settings['verbose_logging']:
-        log.warning(f"Session {cat.user_id}: Configuring episodic memory recall")
     
     # Check if this is a temporary session
     if is_temporary_session(cat.user_id):
-        if settings['verbose_logging']:
-            log.warning(f"Session {cat.user_id}: Configuring episodic memory recall for temporary session")
+        log.info(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "episodic_recall_config",
+            "data": {"user_id": cat.user_id}
+        }))
         # Only recall memories from this specific temporary session
         if "metadata" not in episodic_recall_config:
             episodic_recall_config["metadata"] = {}
@@ -167,8 +166,11 @@ def before_cat_stores_episodic_memory(doc, cat):
         # Add skip marker if episodic memory is disabled for temporary sessions
         if not settings['episodic_memory_for_tmp']:
             doc.metadata["skip_storage"] = True
-            if settings['verbose_logging']:
-                log.info(f"Session {cat.user_id}: Marking episodic memory for cleanup (will be removed before response)")
+            log.info(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "episodic_memory_marked",
+                "data": {"user_id": cat.user_id}
+            }))
         
         if cat.user_id in session_registry:
             session_data = session_registry[cat.user_id]
@@ -185,7 +187,11 @@ def factory_allowed_auth_handlers(auth_handlers, cat):
     """
     # Add our temporary session auth handler config to the available auth handlers
     auth_handlers.append(TemporarySessionAuthConfig)
-    log.info("Session Manager Plugin: Registered TemporarySessionAuthHandler")
+    log.info(json.dumps({
+        "component": "ccat_temporary_chat_authentication",
+        "event": "auth_handler_registered",
+        "data": {}
+    }))
     
     return auth_handlers
 
@@ -200,20 +206,30 @@ def after_cat_bootstrap(cat):
     from cat.db import crud, models
     
     settings = cat.mad_hatter.get_plugin().load_settings()
-    log.warning(settings)
     
     # Initialize session management
-    log.info("Session Manager Plugin: Initializing temporary session management")
-    log.info(f"Default session duration: {settings['default_session_duration_minutes']} minutes")
+    log.info(json.dumps({
+        "component": "ccat_temporary_chat_authentication",
+        "event": "init_session_management",
+        "data": {"duration": settings['default_session_duration_minutes']}
+    }))
     
     # Clean up temporary episodic memories from previous runs
     # Set purge=True to clean ALL temporary memories, or purge=False to clean only orphaned ones
     if settings['cleanup_on_startup']:
         try:
             cleanup_count = cleanup_all_temporary_episodic_memories(cat, purge=True)
-            log.info(f"Session Manager Plugin: Purged all {cleanup_count} temporary episodic memories on startup")
+            log.info(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "startup_memory_purge",
+                "data": {"count": cleanup_count}
+            }))
         except Exception as e:
-            log.error(f"Session Manager Plugin: Error cleaning temporary episodic memories on startup: {e}")
+            log.error(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "startup_memory_purge_error",
+                "data": {"error": str(e)}
+            }))
     
     # Check if our auth handler is already selected and auto-configure if enabled
     if settings['auto_configure_auth']:
@@ -241,11 +257,19 @@ def after_cat_bootstrap(cat):
                 
                 # Reload auth system to pick up our handler
                 cat.load_auth()
-                log.info("Session Manager Plugin: Configured Cat to use TemporarySessionAuthHandler")
+                log.info(json.dumps({
+                    "component": "ccat_temporary_chat_authentication",
+                    "event": "auth_configured",
+                    "data": {}
+                }))
             else:
-                log.info("Session Manager Plugin: TemporarySessionAuthHandler already configured")
+                pass # Already configured
         except Exception as e:
-            log.warning(f"Session Manager Plugin: Could not configure auth handler: {e}")
+            log.warning(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "auth_config_error",
+                "data": {"error": str(e)}
+            }))
     
     return cat
 
@@ -270,15 +294,22 @@ def before_cat_bootstrap(cat):
     """
     Handle session cleanup on Cat startup
     """
-    log.info("Session Manager Plugin: Cleaning up sessions on startup")
     from .utils import rate_limit_tracker
     
     # Clean up expired sessions instead of clearing all
     try:
         expired_count = cleanup_expired_sessions()
-        log.info(f"Session Manager Plugin: Cleaned up {expired_count} expired sessions on startup")
+        log.info(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "startup_session_cleanup",
+            "data": {"count": expired_count}
+        }))
     except Exception as e:
-        log.error(f"Session Manager Plugin: Error cleaning expired sessions on startup: {e}")
+        log.error(json.dumps({
+            "component": "ccat_temporary_chat_authentication",
+            "event": "startup_session_cleanup_error",
+            "data": {"error": str(e)}
+        }))
         # Fallback to clearing all sessions if cleanup fails
         session_registry.clear()
     

@@ -6,6 +6,7 @@ and monitoring temporary sessions.
 """
 
 import jwt
+import json
 from datetime import datetime
 
 from pytz import utc
@@ -26,7 +27,6 @@ from .utils import (
     check_rate_limit,
     cleanup_expired_sessions,
     cleanup_session_episodic_memory,
-    get_plugin_settings
 )
 
 
@@ -149,18 +149,26 @@ def cleanup_session(session_id: str, request: Request) -> dict:
             # Create a temporary cat instance for memory cleanup
             ccat = CheshireCat()
             memory_cleaned = cleanup_session_episodic_memory(session_id, ccat)
-            settings = get_plugin_settings()
-            if settings["verbose_logging"]:
-                log.info(f"Memory cleanup result for session {session_id}: {memory_cleaned}")
+            log.info(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "memory_cleanup",
+                "data": {"session_id": session_id, "cleaned": memory_cleaned}
+            }))
         except Exception as e:
-            log.error(f"Error during memory cleanup for session {session_id}: {e}")
+            log.error(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "memory_cleanup_error",
+                "data": {"session_id": session_id, "error": str(e)}
+            }))
         
         # Remove from registry
         if session_id in session_registry:
             del session_registry[session_id]
-            settings = get_plugin_settings()
-            if settings["verbose_logging"]:
-                log.info(f"Manual cleanup of session: {session_id}")
+            log.info(json.dumps({
+                "component": "ccat_temporary_chat_authentication",
+                "event": "manual_cleanup",
+                "data": {"session_id": session_id}
+            }))
             return {
                 "message": "Session cleaned up successfully", 
                 "session_id": session_id,
