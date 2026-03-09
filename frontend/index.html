@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Assistente Virtuale</title>
+    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/custom/chatbot/style.css">
+    <!-- window.CHATBOT_CONFIG injected by server -->
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="chat-header" role="banner">
+        <div class="header-content">
+            <div class="header-info">
+                <h1 id="header-title" class="header-h1"></h1>
+                <span class="status-dot" role="status" aria-live="polite" aria-label="Stato connessione">Online</span>
+            </div>
+            <button id="reset-btn" class="icon-btn" type="button"
+                    title="Ricomincia conversazione" aria-label="Ricomincia conversazione">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"
+                     aria-hidden="true" focusable="false">
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Chat area -->
+    <main id="chat-container"
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+          aria-label="Area messaggi della chat">
+        <!-- Messages appended by JS -->
+    </main>
+
+    <!-- Input area -->
+    <footer class="chat-footer" role="contentinfo">
+        <div class="footer-container">
+            <form id="chat-form" onsubmit="return false"
+                  aria-label="Modulo di invio messaggio">
+                <label for="user-input" class="sr-only">Scrivi il tuo messaggio</label>
+                <input type="text" id="user-input"
+                       placeholder="Scrivi un messaggio..."
+                       autocomplete="off"
+                       aria-label="Messaggio da inviare"
+                       aria-multiline="false"
+                       disabled>
+                <button type="button" id="send-btn" disabled
+                        aria-label="Invia messaggio">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"
+                         aria-hidden="true" focusable="false">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                    </svg>
+                </button>
+            </form>
+            <div class="footer-privacy">
+                <a id="footer-privacy-link" href="#" target="_blank" rel="noopener noreferrer"
+                   aria-label="Leggi l'informativa sulla privacy (apre in una nuova scheda)">
+                    Informativa Privacy
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Privacy overlay -->
+    <div id="privacy-overlay" class="overlay"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="overlay-title"
+         aria-describedby="overlay-desc">
+        <div class="overlay-content">
+            <h2 id="overlay-title">Benvenuto</h2>
+            <p id="overlay-desc">
+                Per utilizzare l'assistente virtuale di
+                <strong id="tenant-name-overlay">...</strong>,
+                è necessario accettare l'informativa sulla privacy.
+            </p>
+            <p>
+                <a id="privacy-link" href="#" target="_blank" rel="noopener noreferrer"
+                   aria-label="Leggi l'informativa sulla privacy (apre in una nuova scheda)">
+                    Leggi Informativa Privacy
+                </a>
+            </p>
+
+            <div class="checkbox-container" role="group">
+                <input type="checkbox" id="privacy-check"
+                       aria-required="true"
+                       onclick="document.getElementById('start-chat-btn').disabled = !this.checked">
+                <label for="privacy-check">Ho letto e accetto l'informativa</label>
+            </div>
+
+            <button id="start-chat-btn" type="button" disabled
+                    aria-label="Avvia la chat dopo aver accettato l'informativa">
+                Inizia Chat
+            </button>
+        </div>
+    </div>
+
+    <script src="/custom/chatbot/script.js"></script>
+</body>
+</html>
