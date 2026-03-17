@@ -61,6 +61,11 @@ class SessionManagerSettings(BaseModel):
         title="Privacy Policy URL",
         description="Full URL to the privacy policy page shown in the chatbot overlay and footer",
     )
+    chatbot_default_questions: str = Field(
+        default="",
+        title="Default Suggested Questions",
+        description="Comma-separated list of suggested questions shown as chips below each bot message (leave empty to hide)",
+    )
 
 
 # hook to give the cat settings

@@ -262,6 +262,11 @@ def serve_chatbot_ui():
                 "botName": settings.get("chatbot_bot_name", "AI Assistant"),
                 "accentColor": settings.get("chatbot_accent_color", "#005fff"),
                 "privacyUrl": settings.get("chatbot_privacy_url", "#"),
+                "defaultQuestions": [
+                    q.strip()
+                    for q in settings.get("chatbot_default_questions", "").split(",")
+                    if q.strip()
+                ],
             }
         )
         + ";</script>"

@@ -316,6 +316,32 @@ body {
 }
 .sources-panel a:hover { opacity: 0.8; }
 
+/* ── Suggested-question chips ──────────────────────────────────────────── */
+.suggested-questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.suggested-chip {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.04);
+    color: #444;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    line-height: 1.4;
+}
+.suggested-chip:hover {
+    background: rgba(0, 0, 0, 0.08);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
 /* ── Offline status ─────────────────────────────────────────────────────── */
 .status-dot.offline { opacity: 0.9; }
 

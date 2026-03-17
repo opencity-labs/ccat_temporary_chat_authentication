@@ -1,5 +1,5 @@
 /**
- * Chatbot frontend — ccat_temporary_chat_authentication plugin.
+ * Chatbot frontend -  ccat_temporary_chat_authentication plugin.
  *
  * Flow:
  *  1. User sees privacy overlay → checks consent → clicks "Inizia Chat"
@@ -18,10 +18,11 @@
 // ---------------------------------------------------------------------------
 const _cfg = (typeof window.CHATBOT_CONFIG === "object" && window.CHATBOT_CONFIG) || {};
 const CONFIG = {
-    headerTitle:  _cfg.headerTitle  || "Assistente Virtuale",
-    botName:      _cfg.botName      || "Assistente AI",
-    accentColor:  _cfg.accentColor  || "#005fff",
-    privacyUrl:   _cfg.privacyUrl   || "#",
+    headerTitle:       _cfg.headerTitle       || "Assistente Virtuale",
+    botName:           _cfg.botName           || "Assistente AI",
+    accentColor:       _cfg.accentColor       || "#005fff",
+    privacyUrl:        _cfg.privacyUrl        || "#",
+    defaultQuestions:  Array.isArray(_cfg.defaultQuestions) ? _cfg.defaultQuestions : [],
 };
 
 // Apply accent colour as CSS custom property so the whole stylesheet picks it up
@@ -294,6 +295,7 @@ function finalizeStream(text, sources = []) {
     if (header) header.appendChild(timeDiv);
 
     if (sources && sources.length > 0) appendSources(streamingBubble, sources);
+    appendSuggestedQuestions(streamingBubble);
 
     streamingBubble.removeAttribute("aria-live");
     streamingBubble  = null;
@@ -352,6 +354,7 @@ function appendMessage(sender, text, sources = []) {
     wrapper.appendChild(bubble);
 
     if (isBot && sources && sources.length > 0) appendSources(wrapper, sources);
+    if (isBot) appendSuggestedQuestions(wrapper);
     ui.chatContainer.appendChild(wrapper);
     scrollToBottom();
 }
@@ -405,6 +408,36 @@ function appendSources(container, sources) {
 }
 
 // ---------------------------------------------------------------------------
+// Suggested questions (chips below bot messages)
+// ---------------------------------------------------------------------------
+function appendSuggestedQuestions(container) {
+    if (CONFIG.defaultQuestions.length === 0) return;
+
+    const wrapper = container.classList.contains("message-wrapper")
+        ? container
+        : container.parentElement || container;
+
+    const chips = document.createElement("div");
+    chips.className = "suggested-questions";
+
+    CONFIG.defaultQuestions.forEach((q) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "suggested-chip";
+        btn.textContent = q;
+        btn.addEventListener("click", () => {
+            if (!socket || socket.readyState !== WebSocket.OPEN) return;
+            appendMessage("user", q);
+            showTyping();
+            socket.send(JSON.stringify({ text: q }));
+        });
+        chips.appendChild(btn);
+    });
+
+    wrapper.appendChild(chips);
+}
+
+// ---------------------------------------------------------------------------
 // Markdown renderer
 // ---------------------------------------------------------------------------
 /** Render a markdown string to safe HTML. */
@@ -412,7 +445,7 @@ function renderMarkdown(raw) {
     if (!raw) return "";
     const str = String(raw);
 
-    // Phase 1 — extract fenced code blocks before HTML-escaping
+    // Phase 1 -  extract fenced code blocks before HTML-escaping
     const fenced = [];
     let s = str.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
         const i = fenced.length;
@@ -423,17 +456,17 @@ function renderMarkdown(raw) {
         return `\x02F${i}\x02`;
     });
 
-    // Phase 2 — HTML-escape the remaining text
+    // Phase 2 -  HTML-escape the remaining text
     s = s
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
 
-    // Phase 3 — inline code (escaped so it's safe)
+    // Phase 3 -  inline code (escaped so it's safe)
     s = s.replace(/`([^`\n]+)`/g, "<code>$1</code>");
 
-    // Phase 4 — block-level processing (line by line)
+    // Phase 4 -  block-level processing (line by line)
     const lines = s.split("\n");
     const out   = [];
     let i = 0;
@@ -506,7 +539,7 @@ function renderMarkdown(raw) {
         i++;
     }
 
-    // Phase 5 — restore fenced code blocks
+    // Phase 5 -  restore fenced code blocks
     let result = out.join("\n");
     result = result.replace(/\x02F(\d+)\x02/g, (_, idx) => fenced[parseInt(idx, 10)]);
 
@@ -521,7 +554,7 @@ function applyInline(text) {
     text = text.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "<em>$1</em>");
     // Strikethrough ~~text~~
     text = text.replace(/~~([^~\n]+)~~/g, "<s>$1</s>");
-    // Links  [label](url)  — url was HTML-escaped so &amp; → & in href for browser
+    // Links  [label](url)  -  url was HTML-escaped so &amp; → & in href for browser
     text = text.replace(
         /\[([^\]]+)\]\(([^)]+)\)/g,
         '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
