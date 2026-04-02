@@ -381,10 +381,20 @@ function appendSources(container, sources) {
         const item = document.createElement("div");
         item.setAttribute("role", "listitem");
         const a = document.createElement("a");
-        a.href        = s.metadata?.url ?? s.url ?? "#";
-        a.target      = "_blank";
-        a.rel         = "noopener noreferrer";
-        a.textContent = s.metadata?.source ?? s.label ?? s.url ?? "Fonte";
+        const url = s.url ?? "#";
+        a.href   = url;
+        a.target = "_blank";
+        a.rel    = "noopener noreferrer";
+
+        let label = s.label || null;
+        if (!label && url !== "#") {
+            // No label (e.g. PDF sources) — extract filename from URL path
+            try {
+                label = decodeURIComponent(new URL(url).pathname.split("/").filter(Boolean).pop() || url);
+            } catch { label = (url.split("?")[0]).split("/").filter(Boolean).pop() || url; }
+        }
+        a.textContent = label || "Fonte";
+
         item.appendChild(a);
         panel.appendChild(item);
     });
@@ -554,10 +564,13 @@ function applyInline(text) {
     text = text.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "<em>$1</em>");
     // Strikethrough ~~text~~
     text = text.replace(/~~([^~\n]+)~~/g, "<s>$1</s>");
-    // Links  [label](url)  -  url was HTML-escaped so &amp; → & in href for browser
+    // Links  [label](url)  -  allow one level of nested parens in URL (e.g. file_(3).pdf)
     text = text.replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+        /\[([^\]]+)\]\(((?:[^()]*|\([^()]*\))*)\)/g,
+        (_, label, url) => {
+            const href = url.replace(/&amp;/g, "&");
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+        }
     );
     return text;
 }
