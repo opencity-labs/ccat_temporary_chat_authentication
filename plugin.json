@@ -1,6 +1,6 @@
 {
     "name": "Temporary Chat Authentication",
-    "version": "0.0.61",
+    "version": "1.0.0",
     "description": "Provides temporary session management for anonymous users with JWT authentication and automatic cleanup.",
     "author_name": "OpenCity Labs",
     "author_url": "https://opencitylabs.it/",

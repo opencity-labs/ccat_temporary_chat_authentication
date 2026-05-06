@@ -8,6 +8,8 @@ and monitoring temporary sessions.
 import os
 import jwt
 import json
+import base64
+import secrets
 from datetime import datetime
 
 from pytz import utc
@@ -34,6 +36,28 @@ from .utils import (
 
 # Absolute path to the frontend directory bundled with this plugin
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
+
+
+def _chatbot_security_headers(nonce: str | None = None) -> dict[str, str]:
+    script_src = "'self' https://cdn.jsdelivr.net"
+    if nonce:
+        script_src += f" 'nonce-{nonce}'"
+    csp = "; ".join([
+        "default-src 'self'",
+        f"script-src {script_src}",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+        "font-src 'self' https://fonts.gstatic.com",
+        "connect-src 'self' wss: ws:",
+        "img-src 'self' data:",
+        "frame-ancestors 'self'",
+    ])
+    return {
+        "Content-Security-Policy": csp,
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "geolocation=(), camera=()",
+    }
 
 
 @endpoint.post("/sessions/create", tags=["Temp Chat Auth"])
@@ -252,8 +276,10 @@ def serve_chatbot_ui():
 
     import json as _json
 
+    nonce = base64.b64encode(secrets.token_bytes(16)).decode()
+
     config_block = (
-        "<script>window.CHATBOT_CONFIG = "
+        f'<script nonce="{nonce}">window.CHATBOT_CONFIG = '
         + _json.dumps(
             {
                 "headerTitle": settings.get(
@@ -278,7 +304,11 @@ def serve_chatbot_ui():
     # Inject config just before </head>
     html = html.replace("</head>", config_block + "\n</head>", 1)
 
-    return HTMLResponse(content=html, media_type="text/html")
+    return HTMLResponse(
+        content=html,
+        media_type="text/html",
+        headers=_chatbot_security_headers(nonce),
+    )
 
 
 @endpoint.get("/chatbot/style.css", tags=["Temp Chat Auth"])
@@ -287,7 +317,7 @@ def serve_chatbot_css():
     path = os.path.join(FRONTEND_DIR, "style.css")
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(path, media_type="text/css")
+    return FileResponse(path, media_type="text/css", headers=_chatbot_security_headers())
 
 
 @endpoint.get("/chatbot/script.js", tags=["Temp Chat Auth"])
@@ -296,7 +326,7 @@ def serve_chatbot_js():
     path = os.path.join(FRONTEND_DIR, "script.js")
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(path, media_type="application/javascript")
+    return FileResponse(path, media_type="application/javascript", headers=_chatbot_security_headers())
 
 
 @endpoint.get("/chatbot/assets/{filename:path}", tags=["Temp Chat Auth"])
@@ -308,4 +338,4 @@ def serve_chatbot_asset(filename: str):
         os.path.abspath(os.path.join(FRONTEND_DIR, "assets"))
     ):
         raise HTTPException(status_code=404, detail="Asset not found")
-    return FileResponse(asset_path)
+    return FileResponse(asset_path, headers=_chatbot_security_headers())
